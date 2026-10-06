@@ -10,7 +10,7 @@ spring:
       group-id: code-agent-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
       properties:
         spring.json.trusted.packages: com.hyeokjin.devflow.codeagent.event
         spring.json.value.default.type: com.hyeokjin.devflow.codeagent.event.DevTaskCreatedEvent
