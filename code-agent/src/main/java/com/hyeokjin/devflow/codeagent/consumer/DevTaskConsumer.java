@@ -47,8 +47,10 @@ public class DevTaskConsumer {
 
         log.info("[GIT CLONE STARTED] taskId={}, repository={}", event.taskId(), event.repository());
 
+        GitCloneResult result;
+
         try {
-            GitCloneResult result = gitCloneService.cloneRepository(
+            result = gitCloneService.cloneRepository(
                     event.taskId(),
                     event.repository()
             );
@@ -71,9 +73,20 @@ public class DevTaskConsumer {
                     result.fileCount(),
                     result.reused()
             );
+        } catch (RuntimeException e) {
+            log.error(
+                    "[GIT CLONE FAILED] taskId={}, repository={}, reason={}",
+                    event.taskId(),
+                    event.repository(),
+                    e.getMessage(),
+                    e
+            );
+            throw e;
+        }
 
-            log.info("[PROJECT ANALYSIS STARTED] taskId={}", event.taskId());
+        log.info("[PROJECT ANALYSIS STARTED] taskId={}", event.taskId());
 
+        try {
             ProjectAnalysisResult analysis = projectAnalysisService.analyze(
                     event.taskId(),
                     event.repository(),
@@ -102,7 +115,7 @@ public class DevTaskConsumer {
             );
         } catch (RuntimeException e) {
             log.error(
-                    "[GIT CLONE FAILED] taskId={}, repository={}, reason={}",
+                    "[PROJECT ANALYSIS FAILED] taskId={}, repository={}, reason={}",
                     event.taskId(),
                     event.repository(),
                     e.getMessage(),
