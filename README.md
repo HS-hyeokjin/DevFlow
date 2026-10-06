@@ -50,6 +50,15 @@ DevFlow
 
 ## Run
 
+Maven을 PC에 별도로 설치할 필요가 없습니다. 프로젝트에 포함된 Maven Wrapper가 Maven 3.9.11을 자동으로 내려받아 사용합니다.
+
+버전 확인:
+
+```powershell
+.\mvnw.cmd -version
+```
+
+
 ### 1. Kafka
 
 ```bash
@@ -60,7 +69,7 @@ docker compose ps
 ### 2. Task Service
 
 ```bash
-mvn -pl task-service spring-boot:run
+.\mvnw.cmd -pl task-service spring-boot:run
 ```
 
 ### 3. Code Agent
@@ -68,7 +77,7 @@ mvn -pl task-service spring-boot:run
 새 터미널에서:
 
 ```bash
-mvn -pl code-agent spring-boot:run
+.\mvnw.cmd -pl code-agent spring-boot:run
 ```
 
 ### 4. Create Task
