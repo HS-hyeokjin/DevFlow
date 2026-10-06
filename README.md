@@ -68,16 +68,15 @@ docker compose ps
 
 ### 2. Private GitHub repository token
 
-Public repository만 테스트할 경우 생략할 수 있습니다.
+현재 학습 단계에서는 환경변수 대신 `GitCloneService.java`의 상수에 토큰을 직접 넣도록 구성했습니다.
 
-현재 DevFlow처럼 private repository를 clone하려면 Code Agent를 실행할 PowerShell에서
-GitHub token을 환경변수로 설정합니다.
-
-```powershell
-$env:GITHUB_TOKEN="YOUR_GITHUB_TOKEN"
+```java
+private static final String GITHUB_TOKEN = "PASTE_YOUR_GITHUB_TOKEN_HERE";
 ```
 
-토큰은 코드나 `.env` 파일에 커밋하지 않습니다.
+로컬에서 `PASTE_YOUR_GITHUB_TOKEN_HERE` 부분만 실제 GitHub fine-grained token으로 바꿉니다.
+
+**실제 토큰이 들어간 변경사항은 절대 commit/push 하지 마세요.** 학습이 끝나면 환경변수나 Secret Manager 방식으로 다시 전환하는 것을 권장합니다.
 
 원하는 경우 workspace 위치도 변경할 수 있습니다.
 

@@ -20,15 +20,17 @@ public class GitCloneService {
     private static final Pattern GITHUB_REPOSITORY_PATTERN =
             Pattern.compile("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$");
 
+    // LOCAL DEVELOPMENT ONLY:
+    // Replace the placeholder below with your GitHub fine-grained token on your PC.
+    // Never commit a real token to Git.
+    private static final String GITHUB_TOKEN = "PASTE_YOUR_GITHUB_TOKEN_HERE";
+
     private final Path workspaceRoot;
-    private final String githubToken;
 
     public GitCloneService(
-            @Value("${devflow.agent.workspace-root:./workspaces}") String workspaceRoot,
-            @Value("${devflow.agent.github-token:}") String githubToken
+            @Value("${devflow.agent.workspace-root:./workspaces}") String workspaceRoot
     ) {
         this.workspaceRoot = Path.of(workspaceRoot).toAbsolutePath().normalize();
-        this.githubToken = githubToken == null ? "" : githubToken.trim();
     }
 
     public GitCloneResult cloneRepository(UUID taskId, String repository) {
@@ -65,9 +67,9 @@ public class GitCloneService {
                     .setCloneAllBranches(false)
                     .setDepth(1);
 
-            if (!githubToken.isBlank()) {
+            if (!GITHUB_TOKEN.isBlank()) {
                 cloneCommand.setCredentialsProvider(
-                        new UsernamePasswordCredentialsProvider("x-access-token", githubToken)
+                        new UsernamePasswordCredentialsProvider("x-access-token", GITHUB_TOKEN)
                 );
             }
 
@@ -82,7 +84,7 @@ public class GitCloneService {
         } catch (GitAPIException e) {
             throw new IllegalStateException(
                     "Git clone failed for " + repository
-                            + ". If this is a private repository, set the GITHUB_TOKEN environment variable.",
+                            + ". For a private repository, set GITHUB_TOKEN in GitCloneService.java.",
                     e
             );
         } catch (IOException e) {
