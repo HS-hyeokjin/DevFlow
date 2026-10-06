@@ -2,7 +2,7 @@
 
 AI 개발 에이전트를 직접 만들면서 **MSA + Kafka + AI Agent**를 학습하는 프로젝트입니다.
 
-## v0.2
+## v0.3
 
 현재 흐름:
 
@@ -23,10 +23,20 @@ Code Agent :8081
              |
              v
       workspaces/<taskId>
+             |
+             v
+      Project Scanner
+             |
+             v
+      OpenAI Responses API
+             |
+             v
+      .devflow/analysis.md
 ```
 
 v0.1에서 Kafka Producer/Consumer 연결을 만들었고,
-v0.2에서는 Code Agent가 이벤트의 `repository` 값을 사용해 실제 GitHub 저장소를 clone합니다.
+v0.2에서 Git clone을 붙였습니다.
+v0.3에서는 clone된 프로젝트의 주요 파일을 수집해 OpenAI Responses API로 실제 프로젝트 분석을 수행합니다.
 
 ## Tech Stack
 
@@ -35,6 +45,7 @@ v0.2에서는 Code Agent가 이벤트의 `repository` 값을 사용해 실제 Gi
 - Spring for Apache Kafka
 - Apache Kafka 4.3.1 (KRaft)
 - Eclipse JGit 7.8.0
+- OpenAI Java SDK 4.76.0 / Responses API
 - Maven Wrapper 3.9.11
 - Docker Compose
 - GitHub Actions
@@ -86,13 +97,33 @@ $env:DEVFLOW_WORKSPACE_ROOT="D:\devFlow\workspaces"
 
 설정하지 않으면 프로젝트 루트의 `./workspaces`를 사용합니다.
 
-### 3. Task Service
+### 3. OpenAI API key
+
+`code-agent/src/main/java/com/hyeokjin/devflow/codeagent/analysis/ProjectAnalysisService.java`에서:
+
+```java
+private static final String OPENAI_API_KEY = "PASTE_YOUR_OPENAI_API_KEY_HERE";
+```
+
+부분을 로컬에서 실제 OpenAI API key로 바꿉니다.
+
+```java
+private static final String OPENAI_API_KEY = "sk-...";
+```
+
+실제 API key가 들어간 변경사항은 commit/push 하지 마세요.
+ChatGPT 구독과 OpenAI API 사용료는 별도이며, API 프로젝트에 사용 가능한 크레딧/결제 설정이 필요합니다.
+
+기본 모델은 현재 OpenAI API quickstart에 사용되는 `gpt-6-astra`입니다.
+API 프로젝트에서 다른 모델을 사용한다면 같은 파일의 `OPENAI_MODEL` 값을 바꾸면 됩니다.
+
+### 4. Task Service
 
 ```powershell
 .\mvnw.cmd -pl task-service spring-boot:run
 ```
 
-### 4. Code Agent
+### 5. Code Agent
 
 다른 PowerShell에서:
 
@@ -100,7 +131,7 @@ $env:DEVFLOW_WORKSPACE_ROOT="D:\devFlow\workspaces"
 .\mvnw.cmd -pl code-agent spring-boot:run
 ```
 
-### 5. Create Task
+### 6. Create Task
 
 PowerShell에서 한글이 깨지지 않도록 UTF-8 bytes로 요청합니다.
 
@@ -140,6 +171,18 @@ Workspace : .../workspaces/232e4d52-d18c-4452-953f-01815ef02b6c
 Branch    : main
 Files     : ...
 Reused    : false
+
+[PROJECT ANALYSIS STARTED]
+
+[PROJECT ANALYSIS COMPLETED]
+Task ID        : ...
+Model          : gpt-6-astra
+Files Analyzed : ...
+Result File    : .../.devflow/analysis.md
+
+1. 프로젝트 한줄 요약
+...
+
 ```
 
 같은 `taskId` 이벤트가 다시 전달되고 이미 정상적으로 clone된 workspace가 있으면
@@ -163,7 +206,7 @@ Topic: `dev-task-created`
 
 - **v0.1 ✅** Task Service → Kafka → Code Agent
 - **v0.2 ✅** Code Agent가 GitHub 저장소 clone
-- **v0.3** LLM으로 프로젝트 구조/코드 분석
+- **v0.3 ✅** LLM으로 프로젝트 구조/코드 분석
 - **v0.4** 코드 자동 수정 + 작업 브랜치 생성
 - **v0.5** Test Agent 추가
 - **v0.6** 테스트 실패 → Code Agent 자동 재수정
@@ -172,10 +215,10 @@ Topic: `dev-task-created`
 - **v0.9** Retry / DLT / Transactional Outbox / Idempotency
 - **v1.0** 사람이 승인하는 실제 AI 개발 Agent Workflow
 
-## v0.2에서 공부할 것
+## v0.3에서 공부할 것
 
-1. Kafka 이벤트의 payload가 실제 Agent 작업으로 어떻게 이어지는가
-2. Agent별 작업 디렉터리를 왜 분리해야 하는가
-3. Private repository 인증정보를 코드와 분리하는 이유
-4. 같은 이벤트가 다시 들어올 때 최소한의 멱등 처리를 어떻게 할 수 있는가
-5. Kafka Listener에서 오래 걸리는 Git clone을 직접 처리할 때 어떤 한계가 생기는가
+1. Agent가 전체 저장소를 무작정 LLM에 보내면 왜 안 되는가
+2. 어떤 파일을 우선순위로 수집해야 하는가
+3. 입력 파일 수와 문자 수를 제한하는 이유
+4. 저장소 내부 프롬프트 인젝션을 왜 방어해야 하는가
+5. LLM 분석 결과를 다음 Agent 단계에서 재사용할 수 있게 파일로 저장하는 이유
