@@ -1,0 +1,14 @@
+### Health - Task Service
+GET http://localhost:8080/actuator/health
+
+### Health - Code Agent
+GET http://localhost:8081/actuator/health
+
+### Create development task
+POST http://localhost:8080/tasks
+Content-Type: application/json
+
+{
+  "repository": "HS-hyeokjin/DevFlow",
+  "prompt": "프로젝트 분석해줘"
+}
