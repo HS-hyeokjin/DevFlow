@@ -26,3 +26,6 @@ devflow:
   kafka:
     topics:
       dev-task-created: dev-task-created
+  agent:
+    workspace-root: ${DEVFLOW_WORKSPACE_ROOT:./workspaces}
+    github-token: ${GITHUB_TOKEN:}
