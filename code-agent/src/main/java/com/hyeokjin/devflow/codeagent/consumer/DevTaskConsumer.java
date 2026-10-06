@@ -99,16 +99,24 @@ public class DevTaskConsumer {
                     
                     ============================================================
                     [PROJECT ANALYSIS COMPLETED]
-                    Task ID       : {}
-                    Model         : {}
-                    Files Analyzed: {}
-                    Result File   : {}
+                    Task ID        : {}
+                    Provider       : {}
+                    Model          : {}
+                    Mock           : {}
+                    Input Tokens   : {} (estimated)
+                    Output Tokens  : {} (estimated)
+                    Files Analyzed : {}
+                    Result File    : {}
                     
                     {}
                     ============================================================
                     """,
                     event.taskId(),
+                    analysis.provider(),
                     analysis.model(),
+                    analysis.mock(),
+                    analysis.inputTokens(),
+                    analysis.outputTokens(),
                     analysis.filesAnalyzed(),
                     analysis.resultFile(),
                     analysis.analysis()

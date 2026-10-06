@@ -1,31 +1,26 @@
 package com.hyeokjin.devflow.codeagent.analysis;
 
-import com.openai.client.OpenAIClient;
-import com.openai.client.okhttp.OpenAIOkHttpClient;
-import com.openai.models.responses.Response;
-import com.openai.models.responses.ResponseCreateParams;
+import com.hyeokjin.devflow.codeagent.analysis.ai.AiAnalysisResponse;
+import com.hyeokjin.devflow.codeagent.analysis.ai.AiClient;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ProjectAnalysisService {
 
-    // LOCAL DEVELOPMENT ONLY.
-    // Put your OpenAI API key here on your PC and never commit the real key.
-    private static final String OPENAI_API_KEY = "PASTE_YOUR_OPENAI_API_KEY_HERE";
-
-    // Model used by the current official OpenAI Java Responses API example.
-    private static final String OPENAI_MODEL = "gpt-5.2";
-
     private final ProjectScanner projectScanner;
+    private final AiClient aiClient;
 
-    public ProjectAnalysisService(ProjectScanner projectScanner) {
+    public ProjectAnalysisService(
+            ProjectScanner projectScanner,
+            AiClient aiClient
+    ) {
         this.projectScanner = projectScanner;
+        this.aiClient = aiClient;
     }
 
     public ProjectAnalysisResult analyze(
@@ -34,43 +29,32 @@ public class ProjectAnalysisService {
             String userRequest,
             Path workspace
     ) {
-        String apiKey = normalizedApiKey();
-        validateApiKey(apiKey);
-
         ProjectSnapshot snapshot = projectScanner.scan(workspace);
         String prompt = buildPrompt(repository, userRequest, snapshot);
 
-        OpenAIClient client = OpenAIOkHttpClient.builder()
-                .apiKey(apiKey)
-                .build();
+        AiAnalysisResponse aiResponse = aiClient.analyze(prompt);
 
-        ResponseCreateParams params = ResponseCreateParams.builder()
-                .model(OPENAI_MODEL)
-                .input(prompt)
-                .maxOutputTokens(3000)
-                .build();
-
-        Response response = client.responses().create(params);
-
-        String analysis = response.output().stream()
-                .flatMap(item -> item.message().stream())
-                .flatMap(message -> message.content().stream())
-                .flatMap(content -> content.outputText().stream())
-                .map(outputText -> outputText.text())
-                .collect(Collectors.joining("\n"))
-                .trim();
-
-        if (analysis.isBlank()) {
-            throw new IllegalStateException("OpenAI returned no analysis text");
+        if (aiResponse.content() == null || aiResponse.content().isBlank()) {
+            throw new IllegalStateException("AI client returned no analysis text");
         }
 
-        Path resultFile = saveAnalysis(taskId, workspace, repository, snapshot, analysis);
+        Path resultFile = saveAnalysis(
+                taskId,
+                workspace,
+                repository,
+                snapshot,
+                aiResponse
+        );
 
         return new ProjectAnalysisResult(
-                OPENAI_MODEL,
+                aiResponse.provider(),
+                aiResponse.model(),
+                aiResponse.mock(),
+                aiResponse.inputTokens(),
+                aiResponse.outputTokens(),
                 snapshot.files().size(),
                 resultFile,
-                analysis
+                aiResponse.content()
         );
     }
 
@@ -127,7 +111,7 @@ public class ProjectAnalysisService {
             Path workspace,
             String repository,
             ProjectSnapshot snapshot,
-            String analysis
+            AiAnalysisResponse aiResponse
     ) {
         try {
             Path outputDirectory = workspace.resolve(".devflow");
@@ -140,41 +124,30 @@ public class ProjectAnalysisService {
 
                     - Task ID: %s
                     - Repository: %s
+                    - AI Provider: %s
                     - Model: %s
+                    - Mock: %s
+                    - Estimated input tokens: %d
+                    - Estimated output tokens: %d
                     - Files analyzed: %d
 
                     %s
                     """.formatted(
                     taskId,
                     repository,
-                    OPENAI_MODEL,
+                    aiResponse.provider(),
+                    aiResponse.model(),
+                    aiResponse.mock(),
+                    aiResponse.inputTokens(),
+                    aiResponse.outputTokens(),
                     snapshot.files().size(),
-                    analysis
+                    aiResponse.content()
             );
 
             Files.writeString(outputFile, content, StandardCharsets.UTF_8);
             return outputFile.toAbsolutePath().normalize();
         } catch (IOException e) {
             throw new IllegalStateException("Failed to save project analysis", e);
-        }
-    }
-
-    private String normalizedApiKey() {
-        if (OPENAI_API_KEY == null) {
-            return "";
-        }
-
-        // Prevent pasted line breaks or surrounding whitespace from corrupting
-        // the HTTP Authorization header.
-        return OPENAI_API_KEY.replaceAll("\\s+", "");
-    }
-
-    private void validateApiKey(String apiKey) {
-        if (apiKey.isBlank()
-                || apiKey.equals("PASTE_YOUR_OPENAI_API_KEY_HERE")) {
-            throw new IllegalStateException(
-                    "Set OPENAI_API_KEY in ProjectAnalysisService.java before running v0.3"
-            );
         }
     }
 }

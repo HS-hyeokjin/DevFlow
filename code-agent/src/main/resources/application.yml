@@ -28,3 +28,10 @@ devflow:
       dev-task-created: dev-task-created
   agent:
     workspace-root: ${DEVFLOW_WORKSPACE_ROOT:./workspaces}
+  ai:
+    # mock = no API call/cost, openai = real OpenAI Responses API
+    provider: mock
+    mock:
+      delay-ms: 300
+    openai:
+      model: gpt-5.2
