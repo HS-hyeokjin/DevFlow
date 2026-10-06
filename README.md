@@ -2,158 +2,119 @@
 
 AI 개발 에이전트를 직접 만들면서 **MSA + Kafka + AI Agent**를 학습하는 프로젝트입니다.
 
-## v0.3.1 - Mock AI Mode
+## v0.3.5 - Repo Map + Relevant File Selection
 
-기본 실행에서는 실제 AI API를 호출하지 않습니다.
+이번 버전의 목표는 **AI에 프로젝트 전체 코드를 보내지 않는 것**입니다.
 
 ```text
 POST /tasks
     |
     v
-Task Service :8080
-    |
-    | DEV_TASK_CREATED
-    v
-Apache Kafka :9092
+Task Service
     |
     v
-Code Agent :8081
+Kafka
     |
-    +--> GitHub repository clone
-             |
-             v
-      workspaces/<taskId>
-             |
-             v
-      Project Scanner
-             |
-             v
-          AiClient
-        /          \
-       v            v
- MockAiClient   OpenAiAnalysisClient
-   [기본]          [선택]
-       \            /
-        v          v
-      .devflow/analysis.md
+    v
+Code Agent
+    |
+    +--> Git Clone
+           |
+           v
+       RepoMapService
+           |
+           +--> .devflow/repo-map.md
+           |
+           v
+     RelevantFileSelector
+           |
+           | 사용자 요청과 관련된 파일 최대 8개
+           v
+       ProjectScanner
+           |
+           v
+        AiClient
+       /       \
+      v         v
+ Mock AI      OpenAI
+  기본          선택
+      \         /
+       v       v
+  .devflow/analysis.md
 ```
 
-### AI Provider
+## 토큰 절감 구조
 
-기본 설정:
+이전 v0.3은 최대 40개 파일 / 약 8만 문자를 AI 입력으로 만들 수 있었습니다.
+
+v0.3.5에서는 전체 저장소는 **로컬에서만** 훑어 Repo Map을 만들고,
+사용자 요청과 관련성이 높은 파일만 최대 8개 골라 AI 입력으로 사용합니다.
+
+```text
+이전
+Repository → 최대 40개 파일 → AI
+
+현재
+Repository
+   ↓
+Repo Map (로컬, AI 비용 0)
+   ↓
+관련 파일 점수 계산 (로컬, AI 비용 0)
+   ↓
+최대 8개 파일
+   ↓
+AI
+```
+
+## 관련 파일 선택 방식
+
+현재는 Vector DB 없이 이해하기 쉬운 로컬 점수 방식입니다.
+
+- 사용자 요청 키워드
+- 파일 경로/파일명
+- Java/Kotlin class/interface/record/enum 이름
+- 파일 내용의 키워드 등장 횟수
+- pom.xml, application.yml 같은 구조 파일 기본 점수
+- 간단한 한글 → 개발 키워드 사전
+
+예:
+
+```text
+"로그인 JWT 오류 수정해줘"
+        ↓
+로그인 → login/auth/security/jwt/oauth
+        ↓
+JwtProvider.java
+AuthService.java
+SecurityConfig.java
+...
+```
+
+## 결과 파일
+
+```text
+workspaces/<taskId>/
+├─ clone된 프로젝트
+└─ .devflow/
+   ├─ repo-map.md
+   └─ analysis.md
+```
+
+`repo-map.md`에는 파일 경로, 파일 종류, 주요 symbol, 라인 수, 파일 크기가 저장됩니다.
+
+## 설정
 
 ```yaml
 devflow:
+  analysis:
+    max-relevant-files: 8
   ai:
     provider: mock
 ```
 
-이 상태에서는 OpenAI API Key가 전혀 필요하지 않고 실제 API 요청도 발생하지 않습니다.
+기본 AI는 계속 Mock이므로 OpenAI API 비용 없이 테스트할 수 있습니다.
 
-Mock 실행 시 콘솔에는 예를 들어 다음과 같이 출력됩니다.
-
-```text
-[MOCK AI RESPONSE]
-Provider      : mock
-Model         : mock-devflow-v1
-Input Tokens  : 18420 (estimated)
-Output Tokens : 310 (estimated)
-Cost          : $0.00
-```
-
-토큰 수는 실제 과금 토큰이 아니라 개발 중 규모를 보기 위한 단순 추정치입니다.
-
-실제 OpenAI API를 검증하고 싶을 때만:
-
-```yaml
-devflow:
-  ai:
-    provider: openai
-```
-
-로 바꾸고 `OpenAiAnalysisClient.java`의 API Key 자리표시자를 로컬에서 실제 키로 교체합니다.
-
-> 실제 GitHub/OpenAI 토큰이 들어간 파일은 commit/push 하지 마세요.
-
-## Current Flow
-
-```text
-사용자
-  ↓
-Task Service
-  ↓
-Kafka
-  ↓
-Code Agent
-  ↓
-Git Clone
-  ↓
-ProjectScanner
-  ↓
-AiClient
-  ├─ MockAiClient       ← 기본 / $0
-  └─ OpenAiAnalysisClient
-  ↓
-analysis.md
-```
-
-## Tech Stack
-
-- Java 21
-- Spring Boot 4.1.1
-- Spring for Apache Kafka
-- Apache Kafka
-- Eclipse JGit
-- OpenAI Java SDK (OpenAI 모드에서만 호출)
-- Maven Wrapper
-- Docker Compose
-- GitHub Actions
-
-## Run
-
-### 1. Kafka
-
-```powershell
-docker compose up -d
-```
-
-### 2. GitHub Token
-
-Private repository clone을 위해 `GitCloneService.java`의 자리표시자를 로컬에서 실제 GitHub fine-grained token으로 교체합니다.
-
-```java
-private static final String GITHUB_TOKEN = "PASTE_YOUR_GITHUB_TOKEN_HERE";
-```
-
-### 3. Task Service
-
-```powershell
-.\mvnw.cmd -pl task-service spring-boot:run
-```
-
-### 4. Code Agent
-
-```powershell
-.\mvnw.cmd -pl code-agent spring-boot:run
-```
-
-Mock이 기본값이므로 OpenAI API Key는 필요하지 않습니다.
-
-### 5. Task 생성
-
-```powershell
-$body = @{
-    repository = "HS-hyeokjin/DevFlow"
-    prompt = "프로젝트 구조와 현재 구현 상태를 분석해줘"
-} | ConvertTo-Json
-
-Invoke-RestMethod -Method Post `
-    -Uri "http://localhost:8080/tasks" `
-    -ContentType "application/json; charset=utf-8" `
-    -Body ([System.Text.Encoding]::UTF8.GetBytes($body))
-```
-
-정상 로그:
+## 정상 로그 예시
 
 ```text
 [GIT CLONE COMPLETED]
@@ -161,43 +122,38 @@ Invoke-RestMethod -Method Post `
 [PROJECT ANALYSIS STARTED]
 
 [MOCK AI RESPONSE]
-Provider      : mock
-Model         : mock-devflow-v1
+Input Tokens  : 4200 (estimated)
 Cost          : $0.00
 
 [PROJECT ANALYSIS COMPLETED]
-Provider       : mock
-Model          : mock-devflow-v1
-Mock           : true
-Result File    : .../.devflow/analysis.md
+Repo Map Files   : 120
+Files Sent To AI : 8
+Repo Map         : .../.devflow/repo-map.md
+Selected Files   : [AuthService.java, JwtProvider.java, ...]
+Result File      : .../.devflow/analysis.md
 ```
 
 ## Roadmap
 
 - **v0.1 ✅** Task Service → Kafka → Code Agent
 - **v0.2 ✅** GitHub 저장소 clone
-- **v0.3 ✅** 프로젝트 스캔 + AI 분석 파이프라인
-- **v0.3.1 ✅** AiClient 추상화 + Mock AI 기본 모드
-- **v0.3.5** Repo Map + 관련 파일 선택으로 토큰 절감
+- **v0.3 ✅** 프로젝트 스캔 + AI 분석
+- **v0.3.1 ✅** AiClient 추상화 + Mock AI
+- **v0.3.5 ✅** Repo Map + 관련 파일 자동 선택
 - **v0.4** AI 코드 자동 수정 + 작업 브랜치 생성
 - **v0.5** Test Agent
 - **v0.6** 테스트 실패 → Code Agent 자동 재수정
 - **v0.7** Review Agent + GitHub PR
 - **v1.0** 사람이 승인하는 AI 개발 Agent Workflow
 
-## 왜 Mock AI를 쓰는가?
+## Branch Workflow
 
-DevFlow 개발 대부분은 실제 AI 품질보다 아래 흐름이 정상적으로 이어지는지 검증하는 작업입니다.
+앞으로 기능은 main에 직접 반영하지 않고 feature branch에서 개발합니다.
+
+현재 기능 브랜치:
 
 ```text
-Kafka 이벤트
-→ Git Clone
-→ 파일 선택
-→ AI 호출
-→ 결과 저장
-→ Test Agent
-→ 재시도
+feature/v0.3.5-repo-map
 ```
 
-따라서 개발 중에는 Mock AI로 무료 반복 테스트하고,
-실제 LLM 품질 검증이 필요한 시점에만 OpenAI 모드로 전환합니다.
+검증 후 main으로 merge합니다.
