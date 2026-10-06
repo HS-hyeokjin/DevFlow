@@ -19,8 +19,8 @@ public class ProjectAnalysisService {
     // Put your OpenAI API key here on your PC and never commit the real key.
     private static final String OPENAI_API_KEY = "PASTE_YOUR_OPENAI_API_KEY_HERE";
 
-    // Current OpenAI API quickstart model. Change this if your API project uses another model.
-    private static final String OPENAI_MODEL = "gpt-6-astra";
+    // Model used by the current official OpenAI Java Responses API example.
+    private static final String OPENAI_MODEL = "gpt-5.2";
 
     private final ProjectScanner projectScanner;
 
@@ -34,13 +34,14 @@ public class ProjectAnalysisService {
             String userRequest,
             Path workspace
     ) {
-        validateApiKey();
+        String apiKey = normalizedApiKey();
+        validateApiKey(apiKey);
 
         ProjectSnapshot snapshot = projectScanner.scan(workspace);
         String prompt = buildPrompt(repository, userRequest, snapshot);
 
         OpenAIClient client = OpenAIOkHttpClient.builder()
-                .apiKey(OPENAI_API_KEY)
+                .apiKey(apiKey)
                 .build();
 
         ResponseCreateParams params = ResponseCreateParams.builder()
@@ -158,9 +159,19 @@ public class ProjectAnalysisService {
         }
     }
 
-    private void validateApiKey() {
-        if (OPENAI_API_KEY.isBlank()
-                || OPENAI_API_KEY.equals("PASTE_YOUR_OPENAI_API_KEY_HERE")) {
+    private String normalizedApiKey() {
+        if (OPENAI_API_KEY == null) {
+            return "";
+        }
+
+        // Prevent pasted line breaks or surrounding whitespace from corrupting
+        // the HTTP Authorization header.
+        return OPENAI_API_KEY.replaceAll("\\s+", "");
+    }
+
+    private void validateApiKey(String apiKey) {
+        if (apiKey.isBlank()
+                || apiKey.equals("PASTE_YOUR_OPENAI_API_KEY_HERE")) {
             throw new IllegalStateException(
                     "Set OPENAI_API_KEY in ProjectAnalysisService.java before running v0.3"
             );
