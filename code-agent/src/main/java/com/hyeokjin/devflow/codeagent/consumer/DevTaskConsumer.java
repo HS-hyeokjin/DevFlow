@@ -99,14 +99,17 @@ public class DevTaskConsumer {
                     
                     ============================================================
                     [PROJECT ANALYSIS COMPLETED]
-                    Task ID        : {}
-                    Provider       : {}
-                    Model          : {}
-                    Mock           : {}
-                    Input Tokens   : {} (estimated)
-                    Output Tokens  : {} (estimated)
-                    Files Analyzed : {}
-                    Result File    : {}
+                    Task ID          : {}
+                    Provider         : {}
+                    Model            : {}
+                    Mock             : {}
+                    Input Tokens     : {} (estimated)
+                    Output Tokens    : {} (estimated)
+                    Repo Map Files   : {}
+                    Files Sent To AI : {}
+                    Repo Map         : {}
+                    Selected Files   : {}
+                    Result File      : {}
                     
                     {}
                     ============================================================
@@ -117,7 +120,10 @@ public class DevTaskConsumer {
                     analysis.mock(),
                     analysis.inputTokens(),
                     analysis.outputTokens(),
+                    analysis.repoMapFiles(),
                     analysis.filesAnalyzed(),
+                    analysis.repoMapFile(),
+                    analysis.selectedFiles(),
                     analysis.resultFile(),
                     analysis.analysis()
             );

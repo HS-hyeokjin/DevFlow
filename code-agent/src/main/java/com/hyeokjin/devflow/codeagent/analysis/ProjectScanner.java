@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 public class ProjectScanner {
 
     private static final int MAX_FILES = 40;
+    private static final int MAX_SELECTED_FILES = 8;
     private static final int MAX_TOTAL_CHARACTERS = 80_000;
+    private static final int MAX_SELECTED_CHARACTERS = 40_000;
     private static final int MAX_CHARACTERS_PER_FILE = 12_000;
 
     private static final Set<String> INCLUDED_EXTENSIONS = Set.of(
@@ -27,7 +29,7 @@ public class ProjectScanner {
     );
 
     private static final Set<String> IGNORED_DIRECTORIES = Set.of(
-            ".git", "target", "build", "node_modules", ".idea", ".gradle"
+            ".git", "target", "build", "node_modules", ".idea", ".gradle", ".devflow"
     );
 
     public ProjectSnapshot scan(Path workspace) {
@@ -41,11 +43,44 @@ public class ProjectScanner {
                             .thenComparing(path -> workspace.relativize(path).toString()))
                     .toList();
 
+            return readFiles(workspace, candidates, MAX_FILES, MAX_TOTAL_CHARACTERS);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to scan project workspace: " + workspace, e);
+        }
+    }
+
+    public ProjectSnapshot scanSelected(
+            Path workspace,
+            List<String> relativePaths
+    ) {
+        List<Path> selected = relativePaths.stream()
+                .limit(MAX_SELECTED_FILES)
+                .map(workspace::resolve)
+                .map(Path::normalize)
+                .filter(path -> path.startsWith(workspace.normalize()))
+                .filter(Files::isRegularFile)
+                .toList();
+
+        return readFiles(
+                workspace,
+                selected,
+                MAX_SELECTED_FILES,
+                MAX_SELECTED_CHARACTERS
+        );
+    }
+
+    private ProjectSnapshot readFiles(
+            Path workspace,
+            List<Path> candidates,
+            int maxFiles,
+            int maxTotalCharacters
+    ) {
+        try {
             List<ProjectFileSnapshot> selected = new ArrayList<>();
             int totalCharacters = 0;
 
             for (Path path : candidates) {
-                if (selected.size() >= MAX_FILES || totalCharacters >= MAX_TOTAL_CHARACTERS) {
+                if (selected.size() >= maxFiles || totalCharacters >= maxTotalCharacters) {
                     break;
                 }
 
@@ -55,9 +90,9 @@ public class ProjectScanner {
                             + "\n\n[TRUNCATED BY DEVFLOW]";
                 }
 
-                int remaining = MAX_TOTAL_CHARACTERS - totalCharacters;
+                int remaining = maxTotalCharacters - totalCharacters;
                 if (content.length() > remaining) {
-                    content = content.substring(0, remaining)
+                    content = content.substring(0, Math.max(0, remaining))
                             + "\n\n[TRUNCATED BY DEVFLOW]";
                 }
 
@@ -71,7 +106,7 @@ public class ProjectScanner {
 
             return new ProjectSnapshot(List.copyOf(selected), totalCharacters);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to scan project workspace: " + workspace, e);
+            throw new IllegalStateException("Failed to read project files", e);
         }
     }
 
@@ -102,29 +137,19 @@ public class ProjectScanner {
     private int priority(String path) {
         String normalized = path.replace('\\', '/').toLowerCase();
 
-        if (normalized.equals("readme.md")) {
-            return 0;
-        }
+        if (normalized.equals("readme.md")) return 0;
         if (normalized.equals("pom.xml")
                 || normalized.equals("build.gradle")
                 || normalized.equals("build.gradle.kts")
                 || normalized.equals("settings.gradle")
-                || normalized.equals("settings.gradle.kts")) {
-            return 1;
-        }
-        if (normalized.endsWith("/pom.xml")) {
-            return 2;
-        }
+                || normalized.equals("settings.gradle.kts")) return 1;
+        if (normalized.endsWith("/pom.xml")) return 2;
         if (normalized.endsWith("application.yml")
                 || normalized.endsWith("application.yaml")
                 || normalized.endsWith("application.properties")
                 || normalized.equals("docker-compose.yml")
-                || normalized.equals("docker-compose.yaml")) {
-            return 3;
-        }
-        if (normalized.endsWith(".java") || normalized.endsWith(".kt")) {
-            return 4;
-        }
+                || normalized.equals("docker-compose.yaml")) return 3;
+        if (normalized.endsWith(".java") || normalized.endsWith(".kt")) return 4;
         return 10;
     }
 }
