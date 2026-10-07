@@ -1,8 +1,9 @@
 package com.hyeokjin.devflow.codeagent.consumer;
 
-import com.hyeokjin.devflow.codeagent.event.DevTaskCreatedEvent;
 import com.hyeokjin.devflow.codeagent.analysis.ProjectAnalysisResult;
 import com.hyeokjin.devflow.codeagent.analysis.ProjectAnalysisService;
+import com.hyeokjin.devflow.codeagent.event.CodeModifiedEventPublisher;
+import com.hyeokjin.devflow.codeagent.event.DevTaskCreatedEvent;
 import com.hyeokjin.devflow.codeagent.git.GitCloneResult;
 import com.hyeokjin.devflow.codeagent.git.GitCloneService;
 import com.hyeokjin.devflow.codeagent.modification.CodeModificationResult;
@@ -20,15 +21,18 @@ public class DevTaskConsumer {
     private final GitCloneService gitCloneService;
     private final ProjectAnalysisService projectAnalysisService;
     private final CodeModificationService codeModificationService;
+    private final CodeModifiedEventPublisher codeModifiedEventPublisher;
 
     public DevTaskConsumer(
             GitCloneService gitCloneService,
             ProjectAnalysisService projectAnalysisService,
-            CodeModificationService codeModificationService
+            CodeModificationService codeModificationService,
+            CodeModifiedEventPublisher codeModifiedEventPublisher
     ) {
         this.gitCloneService = gitCloneService;
         this.projectAnalysisService = projectAnalysisService;
         this.codeModificationService = codeModificationService;
+        this.codeModifiedEventPublisher = codeModifiedEventPublisher;
     }
 
     @KafkaListener(topics = "${devflow.kafka.topics.dev-task-created}")
@@ -55,10 +59,7 @@ public class DevTaskConsumer {
         GitCloneResult result;
 
         try {
-            result = gitCloneService.cloneRepository(
-                    event.taskId(),
-                    event.repository()
-            );
+            result = gitCloneService.cloneRepository(event.taskId(), event.repository());
 
             log.info(
                     """
@@ -117,8 +118,6 @@ public class DevTaskConsumer {
                     Repo Map         : {}
                     Selected Files   : {}
                     Result File      : {}
-                    
-                    {}
                     ============================================================
                     """,
                     event.taskId(),
@@ -131,8 +130,7 @@ public class DevTaskConsumer {
                     analysis.filesAnalyzed(),
                     analysis.repoMapFile(),
                     analysis.selectedFiles(),
-                    analysis.resultFile(),
-                    analysis.analysis()
+                    analysis.resultFile()
             );
         } catch (RuntimeException e) {
             log.error(
@@ -147,8 +145,10 @@ public class DevTaskConsumer {
 
         log.info("[CODE MODIFICATION STARTED] taskId={}", event.taskId());
 
+        CodeModificationResult modification;
+
         try {
-            CodeModificationResult modification = codeModificationService.modify(
+            modification = codeModificationService.modify(
                     event.taskId(),
                     event.repository(),
                     event.prompt(),
@@ -169,8 +169,6 @@ public class DevTaskConsumer {
                     Changed Files : {}
                     Plan File     : {}
                     Diff File     : {}
-                    
-                    {}
                     ============================================================
                     """,
                     event.taskId(),
@@ -180,8 +178,7 @@ public class DevTaskConsumer {
                     modification.mock(),
                     modification.changedFiles(),
                     modification.planFile(),
-                    modification.diffFile(),
-                    modification.diff()
+                    modification.diffFile()
             );
         } catch (RuntimeException e) {
             log.error(
@@ -193,5 +190,21 @@ public class DevTaskConsumer {
             );
             throw e;
         }
+
+        codeModifiedEventPublisher.publish(
+                event.taskId(),
+                event.repository(),
+                event.prompt(),
+                result.workspace(),
+                modification.branchName(),
+                modification.changedFiles()
+        );
+
+        log.info(
+                "[CODE_MODIFIED EVENT PUBLISHED] taskId={}, branch={}, changedFiles={}",
+                event.taskId(),
+                modification.branchName(),
+                modification.changedFiles().size()
+        );
     }
 }

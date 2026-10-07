@@ -1,0 +1,29 @@
+spring:
+  main:
+    web-application-type: none
+  application:
+    name: test-agent
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: test-agent-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.hyeokjin.devflow.testagent.event
+        spring.json.value.default.type: com.hyeokjin.devflow.testagent.event.CodeModifiedEvent
+        spring.json.use.type.headers: false
+
+devflow:
+  kafka:
+    topics:
+      code-modified: code-modified
+      test-result: test-result
+  test:
+    timeout-seconds: 300
