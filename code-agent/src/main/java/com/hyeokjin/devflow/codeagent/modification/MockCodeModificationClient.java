@@ -45,7 +45,7 @@ public class MockCodeModificationClient implements CodeModificationClient {
                 ));
 
         String request = sanitize(userRequest);
-        String changedContent = applyMockChange(target, request);
+        String changedContent = applyMockChange(target, request, userRequest);
 
         String summary = "Mock mode: selected file에 안전한 주석 변경을 적용해 "
                 + "실제 파일 수정 → git diff 파이프라인을 검증합니다.";
@@ -86,13 +86,34 @@ public class MockCodeModificationClient implements CodeModificationClient {
         );
     }
 
-    private String applyMockChange(ProjectFileSnapshot file, String request) {
-        if (file.content().contains(MARKER)) {
+    private String applyMockChange(
+            ProjectFileSnapshot file,
+            String request,
+            String fullRequest
+    ) {
+        String marker = markerFor(fullRequest);
+        if (file.content().contains(marker)) {
             return file.content();
         }
 
-        String comment = commentFor(file.path(), request);
+        // A retry adds a distinct marker, but never pretends to repair actual code.
+        String description = MARKER.equals(marker)
+                ? request
+                : "retry pipeline verification";
+        String comment = commentFor(file.path(), marker + ": " + description);
         return file.content().stripTrailing() + "\n\n" + comment + "\n";
+    }
+
+    private String markerFor(String request) {
+        if (request != null) {
+            java.util.regex.Matcher retry = java.util.regex.Pattern
+                    .compile("(?m)^DEVFLOW_RETRY_ATTEMPT=([0-9]{1,2})$")
+                    .matcher(request);
+            if (retry.find()) {
+                return "DEVFLOW-MOCK-RETRY-" + retry.group(1);
+            }
+        }
+        return MARKER;
     }
 
     private boolean supportsSafeComment(String path) {
@@ -115,7 +136,7 @@ public class MockCodeModificationClient implements CodeModificationClient {
 
     private String commentFor(String path, String request) {
         String lower = path.toLowerCase(Locale.ROOT);
-        String message = MARKER + ": " + request;
+        String message = request;
 
         if (lower.endsWith(".py")
                 || lower.endsWith(".yml")

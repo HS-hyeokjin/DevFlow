@@ -32,10 +32,13 @@ devflow:
     topics:
       dev-task-created: dev-task-created
       code-modified: code-modified
+      test-result: test-result
   agent:
     workspace-root: ${DEVFLOW_WORKSPACE_ROOT:./workspaces}
   analysis:
     max-relevant-files: 8
+  retry:
+    max-attempts: 2
   ai:
     # mock = no API call/cost, openai = real OpenAI Responses API
     provider: mock
