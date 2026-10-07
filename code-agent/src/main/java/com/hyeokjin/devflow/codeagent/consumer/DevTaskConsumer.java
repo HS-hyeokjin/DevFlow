@@ -5,6 +5,8 @@ import com.hyeokjin.devflow.codeagent.analysis.ProjectAnalysisResult;
 import com.hyeokjin.devflow.codeagent.analysis.ProjectAnalysisService;
 import com.hyeokjin.devflow.codeagent.git.GitCloneResult;
 import com.hyeokjin.devflow.codeagent.git.GitCloneService;
+import com.hyeokjin.devflow.codeagent.modification.CodeModificationResult;
+import com.hyeokjin.devflow.codeagent.modification.CodeModificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -17,13 +19,16 @@ public class DevTaskConsumer {
 
     private final GitCloneService gitCloneService;
     private final ProjectAnalysisService projectAnalysisService;
+    private final CodeModificationService codeModificationService;
 
     public DevTaskConsumer(
             GitCloneService gitCloneService,
-            ProjectAnalysisService projectAnalysisService
+            ProjectAnalysisService projectAnalysisService,
+            CodeModificationService codeModificationService
     ) {
         this.gitCloneService = gitCloneService;
         this.projectAnalysisService = projectAnalysisService;
+        this.codeModificationService = codeModificationService;
     }
 
     @KafkaListener(topics = "${devflow.kafka.topics.dev-task-created}")
@@ -86,8 +91,10 @@ public class DevTaskConsumer {
 
         log.info("[PROJECT ANALYSIS STARTED] taskId={}", event.taskId());
 
+        ProjectAnalysisResult analysis;
+
         try {
-            ProjectAnalysisResult analysis = projectAnalysisService.analyze(
+            analysis = projectAnalysisService.analyze(
                     event.taskId(),
                     event.repository(),
                     event.prompt(),
@@ -130,6 +137,55 @@ public class DevTaskConsumer {
         } catch (RuntimeException e) {
             log.error(
                     "[PROJECT ANALYSIS FAILED] taskId={}, repository={}, reason={}",
+                    event.taskId(),
+                    event.repository(),
+                    e.getMessage(),
+                    e
+            );
+            throw e;
+        }
+
+        log.info("[CODE MODIFICATION STARTED] taskId={}", event.taskId());
+
+        try {
+            CodeModificationResult modification = codeModificationService.modify(
+                    event.taskId(),
+                    event.repository(),
+                    event.prompt(),
+                    result.workspace(),
+                    analysis.selectedFiles()
+            );
+
+            log.info(
+                    """
+                    
+                    ============================================================
+                    [CODE MODIFICATION COMPLETED]
+                    Task ID       : {}
+                    Local Branch  : {}
+                    Provider      : {}
+                    Model         : {}
+                    Mock          : {}
+                    Changed Files : {}
+                    Plan File     : {}
+                    Diff File     : {}
+                    
+                    {}
+                    ============================================================
+                    """,
+                    event.taskId(),
+                    modification.branchName(),
+                    modification.provider(),
+                    modification.model(),
+                    modification.mock(),
+                    modification.changedFiles(),
+                    modification.planFile(),
+                    modification.diffFile(),
+                    modification.diff()
+            );
+        } catch (RuntimeException e) {
+            log.error(
+                    "[CODE MODIFICATION FAILED] taskId={}, repository={}, reason={}",
                     event.taskId(),
                     event.repository(),
                     e.getMessage(),
