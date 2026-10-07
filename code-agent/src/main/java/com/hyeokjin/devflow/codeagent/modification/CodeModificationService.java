@@ -60,6 +60,8 @@ public class CodeModificationService {
                 proposal.changes()
         );
 
+        saveChangedFilesManifest(workspace, changedFiles);
+
         String diff = localGitBranchService.createWorkingTreeDiff(workspace);
 
         Path planFile = savePlan(
@@ -171,6 +173,31 @@ public class CodeModificationService {
         }
 
         return List.copyOf(validatedTargets.keySet());
+    }
+
+    private void saveChangedFilesManifest(
+            Path workspace,
+            List<String> changedFiles
+    ) {
+        Path directory = workspace.resolve(".devflow");
+        Path outputFile = directory.resolve("changed-files.txt");
+
+        try {
+            Files.createDirectories(directory);
+
+            Set<String> allChangedFiles = new LinkedHashSet<>();
+            if (Files.isRegularFile(outputFile)) {
+                Files.readAllLines(outputFile, StandardCharsets.UTF_8).stream()
+                        .map(String::trim)
+                        .filter(line -> !line.isBlank())
+                        .forEach(allChangedFiles::add);
+            }
+
+            allChangedFiles.addAll(changedFiles);
+            Files.write(outputFile, allChangedFiles, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to save changed-file manifest", e);
+        }
     }
 
     private Path savePlan(
