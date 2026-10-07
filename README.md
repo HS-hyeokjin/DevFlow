@@ -12,6 +12,7 @@ AI 개발 에이전트를 직접 만들면서 **MSA + Kafka + AI Agent**를 학�
 - `CODE_MODIFIED` 재발행 → Test Agent 재테스트
 - 기본 재시도 최대 2회(`devflow.retry.max-attempts`), 초과 시 중지
 - 동일 실패 이벤트 중복 처리 억제 및 결과 상태 저장
+- 분석용으로 잘린 소스 파일을 전체 내용으로 덮어쓰지 않도록 안전 검사 추가
 - `TEST_PASSED` 수신 시 상태 `COMPLETED` 기록
 
 ```text
@@ -226,7 +227,7 @@ Status: TEST_PASSED
 현재 기능 브랜치:
 
 ```text
-feature/v0.5-test-agent
+feature/v0.6-auto-retry
 ```
 
 검증 후 main으로 merge합니다.

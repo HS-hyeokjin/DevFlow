@@ -92,17 +92,33 @@ public class CodeModificationService {
             List<ProjectFileSnapshot> selectedFiles,
             List<ProposedFileChange> changes
     ) {
-        Set<String> allowedPaths = selectedFiles.stream()
-                .map(ProjectFileSnapshot::path)
-                .collect(java.util.stream.Collectors.toSet());
+        java.util.Map<String, ProjectFileSnapshot> allowedFiles = selectedFiles.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        ProjectFileSnapshot::path,
+                        file -> file,
+                        (first, ignored) -> first
+                ));
 
-        Set<String> changed = new LinkedHashSet<>();
-
+        // Validate the entire AI response before modifying any files.
+        // ProjectScanner uses shortened snapshots; writing those back would
+        // otherwise silently destroy the remainder of a large source file.
+        java.util.Map<String, Path> validatedTargets = new java.util.LinkedHashMap<>();
         for (ProposedFileChange change : changes) {
-            if (!allowedPaths.contains(change.path())) {
+            ProjectFileSnapshot selected = allowedFiles.get(change.path());
+            if (selected == null) {
                 throw new IllegalArgumentException(
                         "AI attempted to modify a non-selected file: " + change.path()
                 );
+            }
+
+            if (selected.content().contains("[TRUNCATED BY DEVFLOW]")) {
+                throw new IllegalStateException(
+                        "Refusing to overwrite a truncated source snapshot: " + change.path()
+                );
+            }
+
+            if (change.content() == null) {
+                throw new IllegalArgumentException("AI returned null file content");
             }
 
             Path target = workspace.resolve(change.path()).normalize();
@@ -112,19 +128,40 @@ public class CodeModificationService {
                 );
             }
 
+            Path component = workspace;
+            for (Path segment : workspace.relativize(target)) {
+                component = component.resolve(segment);
+                if (Files.isSymbolicLink(component)) {
+                    throw new IllegalArgumentException(
+                            "AI attempted to modify a symbolic link: " + change.path()
+                    );
+                }
+            }
+
             if (!Files.isRegularFile(target)) {
                 throw new IllegalArgumentException(
                         "AI attempted to modify a missing file: " + change.path()
                 );
             }
 
+            if (validatedTargets.putIfAbsent(change.path(), target) != null) {
+                throw new IllegalArgumentException(
+                        "AI proposed duplicate changes for: " + change.path()
+                );
+            }
+        }
+
+        if (validatedTargets.isEmpty()) {
+            throw new IllegalStateException("AI proposed no file changes");
+        }
+
+        for (ProposedFileChange change : changes) {
             try {
                 Files.writeString(
-                        target,
+                        validatedTargets.get(change.path()),
                         change.content(),
                         StandardCharsets.UTF_8
                 );
-                changed.add(change.path());
             } catch (IOException e) {
                 throw new IllegalStateException(
                         "Failed to write modified file: " + change.path(),
@@ -133,11 +170,7 @@ public class CodeModificationService {
             }
         }
 
-        if (changed.isEmpty()) {
-            throw new IllegalStateException("AI proposed no file changes");
-        }
-
-        return List.copyOf(changed);
+        return List.copyOf(validatedTargets.keySet());
     }
 
     private Path savePlan(
