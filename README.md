@@ -2,6 +2,43 @@
 
 AI 개발 에이전트를 직접 만들면서 **MSA + Kafka + AI Agent**를 학습하는 프로젝트입니다.
 
+## v0.6 — Automated Test Failure Retry
+
+**개발 브랜치:** `feature/v0.6-auto-retry`
+
+- Code Agent가 `test-result` Topic의 `TEST_FAILED`를 수신
+- 기존 `devflow/<taskId>` 로컬 브랜치와 workspace를 재사용
+- 테스트 실패 로그 마지막 최대 4,000자를 참고해 관련 파일을 다시 선택·분석·수정
+- `CODE_MODIFIED` 재발행 → Test Agent 재테스트
+- 기본 재시도 최대 2회(`devflow.retry.max-attempts`), 초과 시 중지
+- 동일 실패 이벤트 중복 처리 억제 및 결과 상태 저장
+- `TEST_PASSED` 수신 시 상태 `COMPLETED` 기록
+
+```text
+Task Service → dev-task-created → Code Agent
+                                   ↓ CODE_MODIFIED
+                              code-modified → Test Agent
+                                                 ↓
+                                            test-result
+                                                 ↓
+                               Code Agent (retry worker)
+                               ├ TEST_PASSED → COMPLETED
+                               └ TEST_FAILED → 코드 재수정 → CODE_MODIFIED
+                                                (최대 2회)
+```
+
+```text
+workspaces/<taskId>/.devflow/
+├─ retry-state.properties    # 시도 횟수, 마지막 실패 이벤트, 상태
+└─ retry-history.md          # 각 재시도 기록
+```
+
+**Mock 모드 주의:** 재시도 단계별로 `DEVFLOW-MOCK-RETRY-1` 등의 주석을 추가하여 반복 흐름만 검증한다. 실제 테스트 실패 원인을 해결하지는 않는다. 실제 수정은 `openai` 공급자 등 실제 LLM 사용 시에만 가능하다.
+
+**개발 환경 제약:** Code Agent와 Test Agent가 같은 파일시스템을 사용해야 한다. 분산 서버 배포 시 공유 workspace/아티팩트 스토어가 필요하다. 이 버전은 학습용이며 분산 락, 완전한 exactly-once 처리, 컨테이너 격리 테스트 실행은 아직 미구현 상태다.
+
+---
+
 ## v0.5 - Test Agent
 
 v0.5부터 Code Agent와 테스트 실행을 분리합니다.
@@ -180,7 +217,7 @@ Status: TEST_PASSED
 - **v0.3.5 ✅** Repo Map + 관련 파일 선택
 - **v0.4 ✅** 로컬 코드 수정 + Git diff
 - **v0.5 ✅** Test Agent + TEST_PASSED/TEST_FAILED 이벤트
-- **v0.6** 테스트 실패 → Code Agent 자동 재수정
+- **v0.6 ✅** 테스트 실패 → Code Agent 자동 재수정 (최대 2회)
 - **v0.7** Review Agent + GitHub PR
 - **v1.0** 사람이 승인하는 AI 개발 Agent Workflow
 
