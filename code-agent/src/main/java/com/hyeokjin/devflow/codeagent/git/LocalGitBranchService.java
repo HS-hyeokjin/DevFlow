@@ -4,13 +4,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.UUID;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.diff.DiffEntry;
-import org.eclipse.jgit.diff.DiffFormatter;
-import org.eclipse.jgit.diff.RawTextComparator;
 import org.eclipse.jgit.lib.Ref;
 import org.springframework.stereotype.Service;
 
@@ -46,20 +42,12 @@ public class LocalGitBranchService {
 
     public String createWorkingTreeDiff(Path workspace) {
         try (Git git = Git.open(workspace.toFile());
-             ByteArrayOutputStream output = new ByteArrayOutputStream();
-             DiffFormatter formatter = new DiffFormatter(output)) {
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
 
-            List<DiffEntry> entries = git.diff().call();
+            git.diff()
+                    .setOutputStream(output)
+                    .call();
 
-            formatter.setRepository(git.getRepository());
-            formatter.setDiffComparator(RawTextComparator.DEFAULT);
-            formatter.setDetectRenames(true);
-
-            for (DiffEntry entry : entries) {
-                formatter.format(entry);
-            }
-
-            formatter.flush();
             return output.toString(StandardCharsets.UTF_8);
         } catch (IOException | GitAPIException e) {
             throw new IllegalStateException(
