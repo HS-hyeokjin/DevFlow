@@ -6,6 +6,11 @@ spring:
     name: code-agent
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        spring.json.add.type.headers: false
     consumer:
       group-id: code-agent-group
       auto-offset-reset: earliest
@@ -26,6 +31,7 @@ devflow:
   kafka:
     topics:
       dev-task-created: dev-task-created
+      code-modified: code-modified
   agent:
     workspace-root: ${DEVFLOW_WORKSPACE_ROOT:./workspaces}
   analysis:

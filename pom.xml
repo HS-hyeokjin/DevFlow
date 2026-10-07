@@ -22,6 +22,7 @@
     <modules>
         <module>task-service</module>
         <module>code-agent</module>
+        <module>test-agent</module>
     </modules>
 
     <properties>
