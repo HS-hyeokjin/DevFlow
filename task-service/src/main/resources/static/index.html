@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>DevFlow Console</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">D</div>
+        <div>
+          <strong>DevFlow</strong>
+          <span>Agent Console</span>
+        </div>
+      </div>
+
+      <button id="newTaskButton" class="primary-button full-width">
+        <span class="plus">+</span>
+        New task
+      </button>
+
+      <div class="nav-section">
+        <div class="nav-label">Workspace</div>
+        <button class="nav-item active" type="button">
+          <span>◫</span>
+          Tasks
+          <span id="taskCountBadge" class="nav-badge">0</span>
+        </button>
+      </div>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="connection-card">
+        <div class="connection-title">
+          <span id="apiDot" class="status-dot"></span>
+          Task Service
+        </div>
+        <div id="apiStatus" class="connection-copy">Connecting…</div>
+        <div class="connection-meta">localhost:8080</div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">DEVFLOW / DASHBOARD</p>
+          <h1>Development workflow</h1>
+        </div>
+        <div class="top-actions">
+          <span id="lastUpdated" class="last-updated">—</span>
+          <button id="refreshButton" class="ghost-button" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <section class="metrics" aria-label="Task metrics">
+        <article class="metric-card">
+          <span>Total tasks</span>
+          <strong id="metricTotal">0</strong>
+          <small>Tracked by Task Service</small>
+        </article>
+        <article class="metric-card">
+          <span>In progress</span>
+          <strong id="metricActive">0</strong>
+          <small>Agent pipeline running</small>
+        </article>
+        <article class="metric-card">
+          <span>Needs approval</span>
+          <strong id="metricApproval">0</strong>
+          <small>Human decision required</small>
+        </article>
+        <article class="metric-card">
+          <span>Completed</span>
+          <strong id="metricCompleted">0</strong>
+          <small>Merged successfully</small>
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <section class="panel task-list-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">TASKS</p>
+              <h2>Recent work</h2>
+            </div>
+            <span id="listStatus" class="subtle">Loading…</span>
+          </div>
+          <div id="taskList" class="task-list"></div>
+          <div id="emptyTasks" class="empty-state hidden">
+            <div class="empty-icon">⌁</div>
+            <strong>No tasks yet</strong>
+            <p>Create a task to start the agent pipeline.</p>
+          </div>
+        </section>
+
+        <section class="panel detail-panel">
+          <div id="taskEmpty" class="detail-empty">
+            <div class="detail-empty-mark">DF</div>
+            <h2>Select a task</h2>
+            <p>Pipeline status, code changes, test results and review output will appear here.</p>
+          </div>
+
+          <div id="taskDetail" class="hidden">
+            <div class="detail-heading">
+              <div class="detail-title-wrap">
+                <div class="repo-line">
+                  <span id="detailRepo" class="repo-name">—</span>
+                  <span id="detailStatus" class="status-pill">—</span>
+                </div>
+                <h2 id="detailPrompt">—</h2>
+                <div class="detail-meta">
+                  <span id="detailTaskId">—</span>
+                  <span>•</span>
+                  <span id="detailUpdated">—</span>
+                </div>
+              </div>
+              <a id="prLink" class="secondary-button hidden" target="_blank" rel="noreferrer">Open PR ↗</a>
+            </div>
+
+            <section class="pipeline-section">
+              <div class="section-title-row">
+                <div>
+                  <p class="panel-kicker">PIPELINE</p>
+                  <h3>Agent workflow</h3>
+                </div>
+                <span id="branchName" class="branch-chip">No branch yet</span>
+              </div>
+              <div id="pipeline" class="pipeline"></div>
+            </section>
+
+            <div id="approvalPanel" class="approval-panel hidden">
+              <div>
+                <p class="panel-kicker">HUMAN GATE</p>
+                <h3>Pull request is ready for your decision</h3>
+                <p>Review the diff and test result before allowing DevFlow to merge.</p>
+              </div>
+              <div class="approval-actions">
+                <button id="rejectButton" class="danger-button" type="button">Reject</button>
+                <button id="approveButton" class="success-button" type="button">Approve & merge</button>
+              </div>
+            </div>
+
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-tab="overview" type="button">Overview</button>
+              <button class="tab" data-tab="changes" type="button">Changes</button>
+              <button class="tab" data-tab="test" type="button">Test</button>
+              <button class="tab" data-tab="review" type="button">Review</button>
+            </div>
+
+            <div id="tab-overview" class="tab-panel">
+              <div class="info-grid">
+                <article class="info-card">
+                  <span>Status</span>
+                  <strong id="overviewStatus">—</strong>
+                </article>
+                <article class="info-card">
+                  <span>Branch</span>
+                  <strong id="overviewBranch">—</strong>
+                </article>
+                <article class="info-card">
+                  <span>Pull request</span>
+                  <strong id="overviewPr">—</strong>
+                </article>
+              </div>
+
+              <div class="artifact-block">
+                <div class="artifact-heading">
+                  <div>
+                    <p class="panel-kicker">FILES</p>
+                    <h3>Changed files</h3>
+                  </div>
+                  <span id="changedFileCount" class="count-chip">0</span>
+                </div>
+                <div id="changedFiles" class="file-list">
+                  <span class="subtle">No change manifest yet.</span>
+                </div>
+              </div>
+
+              <div class="artifact-block">
+                <div class="artifact-heading">
+                  <div>
+                    <p class="panel-kicker">ANALYSIS</p>
+                    <h3>Agent analysis</h3>
+                  </div>
+                </div>
+                <pre id="analysisText" class="artifact-text">No analysis artifact yet.</pre>
+              </div>
+            </div>
+
+            <div id="tab-changes" class="tab-panel hidden">
+              <div class="artifact-heading">
+                <div>
+                  <p class="panel-kicker">GIT DIFF</p>
+                  <h3>Proposed changes</h3>
+                </div>
+                <button id="copyDiffButton" class="ghost-button compact" type="button">Copy</button>
+              </div>
+              <pre id="diffText" class="diff-view">No diff artifact yet.</pre>
+            </div>
+
+            <div id="tab-test" class="tab-panel hidden">
+              <div class="artifact-heading">
+                <div>
+                  <p class="panel-kicker">TEST AGENT</p>
+                  <h3>Verification result</h3>
+                </div>
+              </div>
+              <pre id="testText" class="artifact-text terminal">No test result yet.</pre>
+            </div>
+
+            <div id="tab-review" class="tab-panel hidden">
+              <div class="artifact-heading">
+                <div>
+                  <p class="panel-kicker">REVIEW AGENT</p>
+                  <h3>Review result</h3>
+                </div>
+              </div>
+              <pre id="reviewText" class="artifact-text">No review result yet.</pre>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="taskDialog" class="dialog">
+    <form id="taskForm" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <p class="panel-kicker">NEW TASK</p>
+          <h2>Start a development task</h2>
+        </div>
+        <button class="icon-button" type="button" data-close-dialog aria-label="Close">×</button>
+      </div>
+
+      <label>
+        <span>Repository</span>
+        <input id="repositoryInput" name="repository" placeholder="owner/repository" required autocomplete="off">
+      </label>
+
+      <label>
+        <span>Request</span>
+        <textarea id="promptInput" name="prompt" rows="7" placeholder="예: Kafka Consumer 예외 처리를 개선하고 테스트도 추가해줘" required></textarea>
+      </label>
+
+      <div id="taskFormError" class="form-error hidden"></div>
+
+      <div class="dialog-actions">
+        <button class="ghost-button" value="cancel" type="button" data-close-dialog>Cancel</button>
+        <button id="submitTaskButton" class="primary-button" type="submit">Start pipeline</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="decisionDialog" class="dialog decision-dialog">
+    <form id="decisionForm" method="dialog">
+      <input id="decisionType" type="hidden">
+      <div class="dialog-heading">
+        <div>
+          <p class="panel-kicker">HUMAN APPROVAL</p>
+          <h2 id="decisionTitle">Approve pull request</h2>
+        </div>
+        <button class="icon-button" type="button" data-close-dialog aria-label="Close">×</button>
+      </div>
+
+      <label>
+        <span>Decided by</span>
+        <input id="decidedByInput" value="hyeokjin" required autocomplete="off">
+      </label>
+
+      <label>
+        <span>Reason</span>
+        <textarea id="decisionReasonInput" rows="4" placeholder="검토 의견을 입력하세요."></textarea>
+      </label>
+
+      <div id="decisionError" class="form-error hidden"></div>
+
+      <div class="dialog-actions">
+        <button class="ghost-button" value="cancel" type="button" data-close-dialog>Cancel</button>
+        <button id="decisionSubmitButton" class="success-button" type="submit">Approve & merge</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

@@ -30,3 +30,5 @@ devflow:
       merge-result: merge-result
   task-state:
     root: ${DEVFLOW_TASK_STATE_ROOT:./task-state}
+  agent:
+    workspace-root: ${DEVFLOW_WORKSPACE_ROOT:./workspaces}

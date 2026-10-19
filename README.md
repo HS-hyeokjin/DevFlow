@@ -1,5 +1,64 @@
 # DevFlow
 
+## v1.1 — Web Dashboard
+
+**개발 브랜치:** `feature/v1.1-web-dashboard`
+
+Task Service가 별도 빌드 도구 없이 정적 Web Dashboard를 함께 제공한다.
+
+```text
+Browser
+  ↓ http://localhost:8080/
+Task Service
+  ├ POST /tasks
+  ├ GET  /tasks
+  ├ GET  /tasks/{taskId}
+  ├ GET  /tasks/{taskId}/artifacts
+  ├ POST /tasks/{taskId}/approve
+  └ POST /tasks/{taskId}/reject
+        ↓
+      Kafka
+        ↓
+Code Agent → Test Agent → Review Agent
+```
+
+### Dashboard 기능
+
+- 전체 Task 수 / 진행 중 / 승인 대기 / 완료 수 표시
+- 최근 Task 목록 및 2.5초 자동 새로고침
+- Repository + Prompt로 새 Task 생성
+- Code → Test → Review → Human → Merge 파이프라인 시각화
+- 현재 상태 / 작업 브랜치 / PR 번호·링크 확인
+- `.devflow/changed-files.txt` 변경 파일 목록
+- `.devflow/analysis.md` 분석 결과
+- `.devflow/changes.diff` Git diff
+- `.devflow/test-result.md` 테스트 결과
+- `.devflow/review-result.md` 리뷰 결과
+- `WAITING_APPROVAL` 상태에서 웹 승인 / 거절
+
+### 실행
+
+기존과 동일하게 Kafka 및 Agent들을 실행한 후 Task Service를 띄운다.
+
+```powershell
+docker compose up -d
+.\mvnw.cmd -pl task-service spring-boot:run
+```
+
+브라우저:
+
+```text
+http://localhost:8080/
+```
+
+Dashboard는 Task Service와 같은 origin에서 제공되므로 별도 CORS 설정이나 Node.js 개발 서버가 필요 없다.
+
+### 현재 구조의 의도
+
+v1.1은 UI 학습과 파이프라인 가시화가 목적이므로 React/Vite 의존성을 추가하지 않고 HTML/CSS/JavaScript를 Spring Boot 정적 리소스로 제공한다. 화면 규모가 커질 경우 추후 별도 React/TypeScript 프론트엔드로 분리할 수 있다.
+
+---
+
 ## v1.0 — Human Approval Workflow
 
 **개발 브랜치:** `feature/v1.0-human-approval`
@@ -396,13 +455,14 @@ Status: TEST_PASSED
 - **v0.6 ✅** 테스트 실패 → Code Agent 자동 재수정 (최대 2회)
 - **v0.7 ✅** Review Agent + GitHub PR
 - **v1.0 ✅** 사람이 승인하는 AI 개발 Agent Workflow
+- **v1.1 ✅** Web Dashboard + Task/Artifact UI
 
 ## Branch Workflow
 
 현재 기능 브랜치:
 
 ```text
-feature/v0.6-auto-retry
+feature/v1.1-web-dashboard
 ```
 
 검증 후 main으로 merge합니다.
