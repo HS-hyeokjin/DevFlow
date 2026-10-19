@@ -26,9 +26,12 @@ public class ReviewResultEventPublisher {
             String branch,
             boolean approved,
             String summary,
+            int pullRequestNumber,
             String pullRequestUrl
     ) {
-        String eventType = pullRequestUrl != null && !pullRequestUrl.isBlank()
+        String eventType = pullRequestNumber > 0
+                && pullRequestUrl != null
+                && !pullRequestUrl.isBlank()
                 ? "PULL_REQUEST_CREATED"
                 : approved ? "REVIEW_APPROVED" : "REVIEW_REJECTED";
 
@@ -39,6 +42,7 @@ public class ReviewResultEventPublisher {
                 branch,
                 approved,
                 summary,
+                pullRequestNumber,
                 pullRequestUrl == null ? "" : pullRequestUrl,
                 Instant.now()
         );
