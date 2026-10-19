@@ -83,6 +83,49 @@ public class GitHubPullRequestClient {
         );
     }
 
+    public GitHubMergeResult merge(
+            String repository,
+            int pullRequestNumber,
+            String token
+    ) {
+        if (pullRequestNumber <= 0) {
+            throw new IllegalArgumentException("Invalid pull request number");
+        }
+
+        String payload = "{\"merge_method\":\"squash\"}";
+        HttpRequest request = baseRequest(
+                URI.create(
+                        "https://api.github.com/repos/"
+                                + repository
+                                + "/pulls/"
+                                + pullRequestNumber
+                                + "/merge"
+                ),
+                token
+        ).PUT(HttpRequest.BodyPublishers.ofString(
+                payload,
+                StandardCharsets.UTF_8
+        )).header("Content-Type", "application/json").build();
+
+        HttpResponse<String> response = send(request);
+        boolean merged = response.statusCode() == 200
+                && response.body().contains("\"merged\":true");
+
+        if (merged) {
+            return new GitHubMergeResult(
+                    true,
+                    extractString(response.body(), "sha"),
+                    extractString(response.body(), "message")
+            );
+        }
+
+        return new GitHubMergeResult(
+                false,
+                "",
+                response.statusCode() + ": " + limited(response.body())
+        );
+    }
+
     private PullRequestResult findOpen(
             String repository,
             String owner,
@@ -163,6 +206,15 @@ public class GitHubPullRequestClient {
                 url.group(1),
                 created
         );
+    }
+
+    private String extractString(String json, String field) {
+        Pattern pattern = Pattern.compile(
+                "\\\"" + Pattern.quote(field)
+                        + "\\\"\\s*:\\s*\\\"([^\\\"]*)\\\""
+        );
+        Matcher matcher = pattern.matcher(json);
+        return matcher.find() ? matcher.group(1) : "";
     }
 
     private String escape(String value) {

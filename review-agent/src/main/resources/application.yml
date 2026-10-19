@@ -25,6 +25,8 @@ devflow:
     topics:
       test-result: test-result
       review-result: review-result
+      human-decision: human-decision
+      merge-result: merge-result
   agent:
     workspace-root: ${DEVFLOW_WORKSPACE_ROOT:./workspaces}
   review:

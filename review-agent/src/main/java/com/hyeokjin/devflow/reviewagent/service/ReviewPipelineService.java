@@ -100,6 +100,7 @@ public class ReviewPipelineService {
                     event.branch(),
                     false,
                     decision.summary(),
+                    0,
                     ""
             );
             log.warn(
@@ -142,6 +143,7 @@ public class ReviewPipelineService {
                     event.branch(),
                     true,
                     decision.summary() + " / GitHub token missing",
+                    0,
                     ""
             );
             log.warn(
@@ -179,6 +181,7 @@ public class ReviewPipelineService {
                 event.branch(),
                 true,
                 decision.summary(),
+                published.pullRequestNumber(),
                 published.pullRequestUrl()
         );
 

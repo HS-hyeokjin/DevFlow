@@ -13,6 +13,20 @@ public class KafkaTopicConfig {
     NewTopic reviewResultTopic(
             @Value("${devflow.kafka.topics.review-result}") String topicName
     ) {
-        return TopicBuilder.name(topicName).partitions(3).replicas(1).build();
+        return topic(topicName);
+    }
+
+    @Bean
+    NewTopic mergeResultTopic(
+            @Value("${devflow.kafka.topics.merge-result}") String topicName
+    ) {
+        return topic(topicName);
+    }
+
+    private NewTopic topic(String name) {
+        return TopicBuilder.name(name)
+                .partitions(3)
+                .replicas(1)
+                .build();
     }
 }
