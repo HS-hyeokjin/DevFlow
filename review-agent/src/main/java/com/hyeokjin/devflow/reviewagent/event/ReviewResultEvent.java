@@ -10,6 +10,7 @@ public record ReviewResultEvent(
         String branch,
         boolean approved,
         String summary,
+        int pullRequestNumber,
         String pullRequestUrl,
         Instant createdAt
 ) {

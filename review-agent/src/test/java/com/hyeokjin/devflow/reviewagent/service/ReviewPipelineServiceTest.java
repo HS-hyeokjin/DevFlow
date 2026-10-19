@@ -91,6 +91,7 @@ class ReviewPipelineServiceTest {
                 "devflow/" + taskId,
                 true,
                 "Mock review approved: 테스트 통과 및 변경 diff/manifest 확인",
+                0,
                 ""
         );
     }

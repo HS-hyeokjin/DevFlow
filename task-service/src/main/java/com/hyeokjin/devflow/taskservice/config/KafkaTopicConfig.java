@@ -13,7 +13,18 @@ public class KafkaTopicConfig {
     NewTopic devTaskCreatedTopic(
             @Value("${devflow.kafka.topics.dev-task-created}") String topicName
     ) {
-        return TopicBuilder.name(topicName)
+        return topic(topicName);
+    }
+
+    @Bean
+    NewTopic humanDecisionTopic(
+            @Value("${devflow.kafka.topics.human-decision}") String topicName
+    ) {
+        return topic(topicName);
+    }
+
+    private NewTopic topic(String name) {
+        return TopicBuilder.name(name)
                 .partitions(3)
                 .replicas(1)
                 .build();

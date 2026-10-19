@@ -1,10 +1,113 @@
 # DevFlow
 
+## v1.0 — Human Approval Workflow
+
+**개발 브랜치:** `feature/v1.0-human-approval`
+
+AI Agent는 코드 수정·테스트·리뷰·Pull Request 생성까지 자동 수행하지만 **merge는 사람의 명시적 승인 이후에만 실행**한다.
+
+```text
+POST /tasks
+   ↓
+Task Service
+   ↓
+Code Agent → Test Agent → Review Agent
+                         ↓
+                  GitHub Pull Request
+                         ↓
+                 WAITING_APPROVAL
+                         ↓
+             ┌───────────┴───────────┐
+             │                       │
+     POST /approve             POST /reject
+             │                       │
+      HUMAN_APPROVED          HUMAN_REJECTED
+             │                       │
+             ↓                       └→ REJECTED
+           Kafka
+             ↓
+        Review Agent
+             ↓
+       GitHub PR merge
+             ↓
+    PULL_REQUEST_MERGED
+             ↓
+        Task Service
+             ↓
+         COMPLETED
+```
+
+### Task 상태 조회
+
+```http
+GET /tasks/{taskId}
+```
+
+주요 상태:
+
+```text
+QUEUED
+→ TESTING
+→ FIXING         (테스트 실패 시)
+→ REVIEWING
+→ WAITING_APPROVAL
+→ APPROVAL_SUBMITTED
+→ COMPLETED
+
+또는
+REVIEW_REJECTED / REJECTED / MERGE_FAILED
+```
+
+Task 상태는 기본적으로 `./task-state`에 로컬 영속 저장한다. 학습용 단일 노드 구현이며 운영 환경에서는 DB로 교체하는 것이 적절하다.
+
+### 사람 승인
+
+PR이 생성되어 상태가 `WAITING_APPROVAL`인 경우에만 승인할 수 있다.
+
+```http
+POST /tasks/{taskId}/approve
+Content-Type: application/json
+
+{
+  "decidedBy": "hyeokjin",
+  "reason": "변경 내용 확인 완료"
+}
+```
+
+거절:
+
+```http
+POST /tasks/{taskId}/reject
+Content-Type: application/json
+
+{
+  "decidedBy": "hyeokjin",
+  "reason": "추가 수정 필요"
+}
+```
+
+승인/거절 API는 현재 로컬 학습용으로 인증 기능이 없다. 실제 운영에서는 SSO/OAuth/RBAC 등 인증·권한 검사가 반드시 필요하다.
+
+### GitHub merge 조건
+
+실제 PR 생성과 merge는 다음 환경변수를 명시적으로 활성화한 경우에만 가능하다.
+
+```powershell
+$env:DEVFLOW_GITHUB_PUBLISH_ENABLED="true"
+$env:DEVFLOW_GITHUB_TOKEN="github_token"
+```
+
+토큰은 소스에 저장하지 않는다. PR 생성 및 merge 권한이 필요하다.
+
+사람이 `approve` API를 호출하기 전에는 Review Agent가 자동 merge하지 않는다.
+
+---
+
 AI 개발 에이전트를 직접 만들면서 **MSA + Kafka + AI Agent**를 학습하는 프로젝트입니다.
 
 ## v0.7 — Review Agent + GitHub Pull Request
 
-**개발 브랜치:** feature/v0.7-review-agent-pr
+**개발 브랜치:** feature/v1.0-human-approval
 
 테스트가 통과한 변경만 Review Agent가 검토한다.
 
@@ -292,7 +395,7 @@ Status: TEST_PASSED
 - **v0.5 ✅** Test Agent + TEST_PASSED/TEST_FAILED 이벤트
 - **v0.6 ✅** 테스트 실패 → Code Agent 자동 재수정 (최대 2회)
 - **v0.7 ✅** Review Agent + GitHub PR
-- **v1.0** 사람이 승인하는 AI 개발 Agent Workflow
+- **v1.0 ✅** 사람이 승인하는 AI 개발 Agent Workflow
 
 ## Branch Workflow
 

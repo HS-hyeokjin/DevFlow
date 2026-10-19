@@ -23,3 +23,10 @@ devflow:
   kafka:
     topics:
       dev-task-created: dev-task-created
+      code-modified: code-modified
+      test-result: test-result
+      review-result: review-result
+      human-decision: human-decision
+      merge-result: merge-result
+  task-state:
+    root: ${DEVFLOW_TASK_STATE_ROOT:./task-state}
