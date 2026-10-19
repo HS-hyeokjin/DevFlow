@@ -1,0 +1,36 @@
+spring:
+  main:
+    web-application-type: none
+  application:
+    name: review-agent
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: review-agent-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.hyeokjin.devflow.reviewagent.event
+        spring.json.value.default.type: com.hyeokjin.devflow.reviewagent.event.TestResultEvent
+        spring.json.use.type.headers: false
+
+devflow:
+  kafka:
+    topics:
+      test-result: test-result
+      review-result: review-result
+  agent:
+    workspace-root: ${DEVFLOW_WORKSPACE_ROOT:./workspaces}
+  review:
+    provider: mock
+    openai:
+      model: gpt-5.2
+  github:
+    publish-enabled: ${DEVFLOW_GITHUB_PUBLISH_ENABLED:false}
+    base-branch: main

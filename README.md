@@ -2,9 +2,81 @@
 
 AI 개발 에이전트를 직접 만들면서 **MSA + Kafka + AI Agent**를 학습하는 프로젝트입니다.
 
+## v0.7 — Review Agent + GitHub Pull Request
+
+**개발 브랜치:** feature/v0.7-review-agent-pr
+
+테스트가 통과한 변경만 Review Agent가 검토한다.
+
+```text
+Task Service
+  ↓ DEV_TASK_CREATED
+Code Agent
+  ↓ CODE_MODIFIED
+Test Agent
+  ├ TEST_FAILED → Code Agent 재수정
+  └ TEST_PASSED
+        ↓
+    Review Agent
+      ├ Mock/OpenAI Review
+      ├ review-result.md 저장
+      ├ 변경 파일만 Git commit
+      ├ 작업 브랜치 push
+      └ GitHub Pull Request 생성
+```
+
+### 안전 기본값
+
+GitHub 원격 publish는 기본적으로 비활성화되어 있다.
+
+```yaml
+devflow:
+  github:
+    publish-enabled: false
+```
+
+실제 PR 생성을 허용할 때만 Review Agent 실행 전에 환경변수를 설정한다.
+
+```powershell
+$env:DEVFLOW_GITHUB_PUBLISH_ENABLED="true"
+$env:DEVFLOW_GITHUB_TOKEN="github_token"
+.\mvnw.cmd -pl review-agent spring-boot:run
+```
+
+토큰은 소스코드에 저장하지 않는다. GitHub Contents 쓰기 및 Pull Request 생성 권한이 필요하다.
+
+### 변경 파일 manifest
+
+Code Agent는 실제 수정한 파일을 누적 기록한다.
+
+```text
+.devflow/changed-files.txt
+```
+
+Review Agent는 이 목록의 tracked file만 commit한다. .devflow 결과 파일이나 관계없는 로컬 수정은 commit하지 않는다.
+
+### Review 결과
+
+```text
+.devflow/review-result.md
+.devflow/review-state.properties
+```
+
+Review Agent는 review-result Topic에 다음 상태를 발행한다.
+
+```text
+REVIEW_APPROVED
+REVIEW_REJECTED
+PULL_REQUEST_CREATED
+```
+
+Mock Review는 테스트 성공, diff 존재, 변경 파일 manifest 존재만 확인한다. 실제 코드 품질 검토는 OpenAI review provider 등 실제 LLM 사용 시 수행된다.
+
+---
+
 ## v0.6 — Automated Test Failure Retry
 
-**개발 브랜치:** `feature/v0.6-auto-retry`
+**개발 브랜치:** `feature/v0.7-review-agent-pr`
 
 - Code Agent가 `test-result` Topic의 `TEST_FAILED`를 수신
 - 기존 `devflow/<taskId>` 로컬 브랜치와 workspace를 재사용
@@ -219,7 +291,7 @@ Status: TEST_PASSED
 - **v0.4 ✅** 로컬 코드 수정 + Git diff
 - **v0.5 ✅** Test Agent + TEST_PASSED/TEST_FAILED 이벤트
 - **v0.6 ✅** 테스트 실패 → Code Agent 자동 재수정 (최대 2회)
-- **v0.7** Review Agent + GitHub PR
+- **v0.7 ✅** Review Agent + GitHub PR
 - **v1.0** 사람이 승인하는 AI 개발 Agent Workflow
 
 ## Branch Workflow
