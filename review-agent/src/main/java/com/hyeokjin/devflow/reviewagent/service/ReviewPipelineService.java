@@ -122,6 +122,7 @@ public class ReviewPipelineService {
                     event.branch(),
                     true,
                     decision.summary(),
+                    0,
                     ""
             );
             log.info(
