@@ -9,6 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
@@ -48,6 +51,30 @@ public class TaskStateStore {
         TaskRecord loaded = read(file);
         cache.put(taskId, loaded);
         return Optional.of(loaded);
+    }
+
+    public synchronized List<TaskRecord> list() {
+        List<TaskRecord> records = new ArrayList<>(cache.values());
+
+        if (Files.isDirectory(root)) {
+            try (var stream = Files.list(root)) {
+                stream.filter(path -> path.getFileName().toString().endsWith(".properties"))
+                        .forEach(path -> {
+                            TaskRecord loaded = read(path);
+                            cache.put(loaded.taskId(), loaded);
+                        });
+            } catch (IOException e) {
+                throw new IllegalStateException(
+                        "Failed to list task state directory: " + root,
+                        e
+                );
+            }
+            records = new ArrayList<>(cache.values());
+        }
+
+        return records.stream()
+                .sorted(Comparator.comparing(TaskRecord::updatedAt).reversed())
+                .toList();
     }
 
     public synchronized TaskRecord update(
